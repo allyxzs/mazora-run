@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#07050f">
+<title>MAZORA RUN — Indie Pixel Art Maze</title>
+<style>
+  :root {
+    --bg: #07050f;
+    --panel: #120d24;
+    --border: #2e2059;
+    --cyan: #00f0ff;
+    --magenta: #ff2a85;
+    --gold: #ffd43b;
+    --purple: #9d4edd;
+    --text: #f3ecff;
+    --muted: #9e91bf;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden; touch-action: none; overscroll-behavior: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #app {
+    position: relative; width: 100%; max-width: 440px; height: 100%; max-height: 820px;
+    background: #0b0718; display: flex; flex-direction: column;
+    border: 1px solid #221744; box-shadow: 0 0 40px rgba(0,240,255,0.08);
+    overflow: hidden;
+  }
+  .hud {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; background: rgba(12, 8, 26, 0.95);
+    border-bottom: 1px solid var(--border); gap: 6px; z-index: 5;
+  }
+  .hud-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    background: #1b1335; border: 1px solid #352566; border-radius: 8px;
+    padding: 4px 8px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px;
+  }
+  .btn-icon {
+    background: #1d143a; border: 1px solid #3b2a73; color: var(--text);
+    border-radius: 8px; padding: 5px 8px; font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: transform .1s, border-color .15s;
+  }
+  .btn-icon:active { transform: scale(0.94); }
+  .btn-icon.active { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,0.25); }
+  #stage-wrap {
+    position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at center, #140d2b 0%, #07050f 100%);
+    overflow: hidden; touch-action: none;
+  }
+  canvas { display: block; image-rendering: pixelated; touch-action: none; }
+  .overlay {
+    position: absolute; inset: 0; background: rgba(7, 5, 15, 0.9);
+    backdrop-filter: blur(6px); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 20px; z-index: 20;
+    text-align: center; overflow-y: auto;
+  }
+  .overlay.hidden { display: none; }
+  .logo {
+    font-size: 34px; font-weight: 900; letter-spacing: 3px; margin: 0 0 6px;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--gold));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 24px rgba(0,240,255,0.25);
+  }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .menu-btns { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 260px; }
+  .btn {
+    background: linear-gradient(135deg, #251752, #180f38);
+    border: 1px solid #49338f; color: var(--text); border-radius: 12px;
+    padding: 12px 16px; font-size: 14px; font-weight: 800; letter-spacing: 0.6px;
+    cursor: pointer; transition: transform .1s, border-color .15s;
+  }
+  .btn:hover { border-color: var(--cyan); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: linear-gradient(135deg, #00b8d4, #6c2bd9);
+    border-color: var(--cyan); color: #fff; box-shadow: 0 0 18px rgba(0,240,255,0.25);
+  }
+  .grid-levels {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    width: 100%; max-width: 340px; margin: 12px 0;
+  }
+  .lvl-card {
+    background: #171030; border: 1px solid #352668; border-radius: 10px;
+    padding: 10px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .lvl-card.locked { opacity: 0.42; cursor: not-allowed; }
+  .lvl-card.done { border-color: var(--cyan); }
+  .shop-list, .audit-list {
+    width: 100%; max-width: 360px; max-height: 55vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px; margin: 12px 0; text-align: left;
+  }
+  .row-card {
+    background: #16102d; border: 1px solid #332463; border-radius: 10px;
+    padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 12px;
+  }
+  .dpad {
+    display: none; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(2, 46px);
+    gap: 6px; padding: 8px; justify-content: center; background: #0c081a; border-top: 1px solid var(--border);
+  }
+  .dpad.show { display: grid; }
+  .dpad button {
+    background: #1c1338; border: 1px solid #3e2d78; color: #fff; border-radius: 10px;
+    font-size: 18px; font-weight: 800; cursor: pointer;
+  }
+  .dpad button:active { background: var(--purple); }
+  .toggle-row {
+    width: 100%; max-width: 290px; display: flex; justify-content: space-between;
+    align-items: center; background: #16102d; border: 1px solid #332463;
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud">
+    <div class="hud-group">
+      <div class="pill" id="hud-lvl">F1</div>
+      <div class="pill" style="color:var(--gold)">🪙 <span id="hud-coins">0</span></div>
+      <div class="pill" style="color:var(--purple)">💎 <span id="hud-crystals">0/3</span></div>
+      <div class="pill" id="hud-key" style="display:none;color:var(--cyan)">🔑</div>
+      <div class="pill" id="hud-shield" style="display:none;color:#4dff91">🛡️</div>
+    </div>
+    <div class="hud-group">
+      <button class="btn-icon" id="btn-hint" title="Rota BFS (H)">🗺️</button>
+      <button class="btn-icon" id="btn-bot" title="Bot Auto-Play (B)">🤖</button>
+      <button class="btn-icon" id="btn-restart" title="Reiniciar (R)">↻</button>
+      <button class="btn-icon" id="btn-pause" title="Pausa (Esc)">⏸</button>
+    </div>
+  </div>
+
+  <div id="stage-wrap">
+    <canvas id="game"></canvas>
+
+    <!-- MENU INICIAL -->
+    <div class="overlay" id="screen-menu">
+      <h1 class="logo">MAZORA RUN</h1>
+      <div class="subtitle">Pixel Art Maze • 20 Fases Verificadas por BFS</div>
+      <div class="menu-btns">
+        <button class="btn primary" id="m-play">▶ JOGAR</button>
+        <button class="btn" id="m-levels">🗺️ FASES (20)</button>
+        <button class="btn" id="m-shop">🎭 PERSONAGENS</button>
+        <button class="btn" id="m-audit">🔍 AUDITORIA BFS</button>
+        <button class="btn" id="m-settings">⚙️ CONFIGURAÇÕES</button>
+      </div>
+    </div>
+
+    <!-- SELEÇÃO DE FASES -->
+    <div class="overlay hidden" id="screen-levels">
+      <h2 style="margin:0 0 4px;color:var(--cyan)">SELEÇÃO DE FASES</h2>
+      <div class="subtitle" style="margin-bottom:6px">5 Biomas • Desbloqueio Progressivo</div>
+      <div class="grid-levels" id="levels-grid"></div>
+      <button class="btn" data-back="menu" style="width:200px">← VOLTAR</button>
+    </div>
+
+    <!-- LOJA -->
+    <div class="overlay hidden" id="screen-shop">
+      <h2 style="margin:0 0 4px;color:var(--gold)">PERSONAGENS & MÁSCARAS</h2>
+      <div class="subtitle" id="shop-wallet" style="margin-bottom:6px"></div>
+      <div class="shop-list" id="shop-list"></div>
+      <button class="btn" data-back="menu" style="width:200px">← VOLTAR</button>
+    </div>
+
+    <!-- AUDITORIA BFS -->
+    <div class="overlay hidden" id="screen-audit">
+      <h2 style="margin:0 0 4px;color:var(--cyan)">AUDITORIA BFS (20/20)</h2>
+      <div class="subtitle" id="audit-summary" style="margin-bottom:6px"></div>
+      <div class="audit-list" id="audit-list"></div>
+      <button class="btn" data-back="menu" style="width:200px">← VOLTAR</button>
+    </div>
+
+    <!-- CONFIGURAÇÕES -->
+    <div class="overlay hidden" id="screen-settings">
+      <h2 style="margin:0 0 12px;color:var(--cyan)">CONFIGURAÇÕES</h2>
+      <div class="toggle-row"><span>🎵 Música</span><button class="btn-icon" id="set-music">ON</button></div>
+      <div class="toggle-row"><span>🔊 Efeitos Sonoros</span><button class="btn-icon" id="set-sfx">ON</button></div>
+      <div class="toggle-row"><span>🎮 D-Pad na Tela</span><button class="btn-icon" id="set-dpad">OFF</button></div>
+      <div class="toggle-row"><span>📳 Vibração Háptica</span><button class="btn-icon" id="set-vib">ON</button></div>
+      <button class="btn" id="set-reset" style="width:290px;margin:8px 0;border-color:#ff4d6d;color:#ff8fa3">🗑️ Resetar Progresso</button>
+      <button class="btn" data-back="menu" style="width:200px">← VOLTAR</button>
+    </div>
+
+    <!-- PAUSA -->
+    <div class="overlay hidden" id="screen-pause">
+      <h2 style="margin:0 0 14px;color:var(--cyan)">PAUSADO</h2>
+      <div class="menu-btns">
+        <button class="btn primary" id="p-resume">▶ CONTINUAR</button>
+        <button class="btn" id="p-restart">↻ REINICIAR FASE</button>
+        <button class="btn" id="p-menu">🏠 MENU INICIAL</button>
+      </div>
+    </div>
+
+    <!-- VITÓRIA -->
+    <div class="overlay hidden" id="screen-win">
+      <h2 style="margin:0 0 6px;color:var(--gold)">FASE CONCLUÍDA!</h2>
+      <div id="win-stars" style="font-size:28px;margin-bottom:8px">⭐⭐⭐</div>
+      <div id="win-stats" class="subtitle" style="margin-bottom:16px"></div>
+      <div class="menu-btns">
+        <button class="btn primary" id="w-next">PRÓXIMA FASE ▶</button>
+        <button class="btn" id="w-replay">↻ JOGAR NOVAMENTE</button>
+        <button class="btn" id="w-menu">🏠 MENU</button>
+      </div>
+    </div>
+
+    <!-- DERROTA -->
+    <div class="overlay hidden" id="screen-lose">
+      <h2 style="margin:0 0 6px;color:var(--magenta)">TENTATIVA ENCERRADA</h2>
+      <div id="lose-reason" class="subtitle" style="margin-bottom:16px">Armadilha ativada!</div>
+      <div class="menu-btns">
+        <button class="btn primary" id="l-retry">↻ TENTAR NOVAMENTE</button>
+        <button class="btn" id="l-menu">🏠 MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- D-PAD OPCIONAL -->
+  <div class="dpad" id="dpad">
+    <div></div><button data-dir="U">▲</button><div></div>
+    <button data-dir="L">◀</button><button data-dir="D">▼</button><button data-dir="R">▶</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const LEVELS = [{"id": 1, "name": "Portão das Ruínas", "biome": 0, "grid": ["#####E#####", "#.....#.C.#", "#.###.##R.#", "#...#...#.#", "#.#.###.#.#", "#.#.#.#.#.#", "###.#.#.#.#", "#...#.#..C#", "#.#.#.###.#", "#...#.....#", "#...#.#.#.#", "#.R.#.#...#", "###...#####", "#...#.....#", "#.#######.#", "#..C.S#...#", "###########"], "par": 8}, {"id": 2, "name": "Corredor de Pedra", "biome": 0, "grid": ["#####E#####", "#..C..#...#", "#C#...###.#", "#.#.#.#...#", "#.#.R.#.R.#", "#.#.#.#.#.#", "#.#.#.#.#.#", "#...#...#.#", "#.#.#.###.#", "#.......#.#", "#.#..##.###", "#.#.C.#...#", "#.###^###.#", "#.#...#...#", "#.#.###.#.#", "#...#S..#.#", "###########"], "par": 10}, {"id": 3, "name": "Câmara dos Espinhos", "biome": 0, "grid": ["#####E#####", "#..C#..^.C#", "#.###.#.###", "#........C#", "#..####.#.#", "#...#...#.#", "###.#^#.R.#", "#...#.....#", "#####.###.#", "#.....#.#.#", "#.#####.#.#", "#.....#...#", "#.###...###", "#...#.#...#", "###.#.##R.#", "#...#S#...#", "###########"], "par": 9}, {"id": 4, "name": "Chave Ancestral", "biome": 0, "grid": ["#####E#####", "#....D#...#", "###.#.#.#.#", "#^..#...#.#", "#.#^#.#.###", "#.R...#...#", "#.#...#.#.#", "#.........#", "#####.##..#", "#..C#.#K..#", "#.#.###.R.#", "#.#.....#.#", "#.##.####.#", "#..CC...#.#", "#..##.#.#.#", "#....S#...#", "###########"], "par": 16}, {"id": 5, "name": "Gruta Luminosa", "biome": 1, "grid": ["#####E#####", "#...#.....#", "#.#.#.#.#F#", "#.#...#..C#", "#######...#", "#.......#.#", "#.#########", "#...#.....#", "#.#..^###.#", "#.#.....#.#", "#.#.#####.#", "#.#...#.C.#", "#.#.#.R.#.#", "#...R.#.#.#", "###.###.#.#", "#.C.#S..#.#", "###########"], "par": 14}, {"id": 6, "name": "Piso Instável", "biome": 1, "grid": ["#####E#####", "#...#.....#", "#.#.#####.#", "#.#......F#", "#.#######C#", "#.....#...#", "#.R##.#.###", "#.#.C.R...#", "#...#######", "#.#......^#", "#.#######.#", "#.........#", "###C###.#.#", "#...#...F.#", "#.###.#.#.#", "#....S#...#", "###########"], "par": 12}, {"id": 7, "name": "Salão dos Prismas", "biome": 1, "grid": ["#####E#####", "#.#..D#...#", "#.#.#.#.#^#", "#.#.#..C#.#", "#.#.#####H#", "#.#.#.....#", "#.....###.#", "#...#.#..K#", "#.###.#.#.#", "#.....#.#.#", "#######.#.#", "#...#...C.#", "#.#.#.##R.#", "#.R...#.#.#", "#.#####.#.#", "#CF..S#...#", "###########"], "par": 12}, {"id": 8, "name": "Coração de Ametista", "biome": 1, "grid": ["#####E#####", "#...#..F..#", "#.R##.###.#", "#...R.#..^#", "#.#.#.#.#.#", "#.....#...#", "#.###.##..#", "#M#...#...#", "#.#C###.#.#", "#...#...#.#", "#.###.###.#", "#.....#.#.#", "#C#.#.#.#.#", "#.....#.#.#", "#.###.#.#H#", "#....S#C..#", "###########"], "par": 7}, {"id": 9, "name": "Altar Dourado", "biome": 2, "grid": ["#####E#####", "#C....#...#", "#.#.#.#..F#", "#.#...#.#C#", "#.###.#.#.#", "#...#...#.#", "#.#.#^###.#", "#.#CR.....#", "#.#.###.###", "#.#...#...#", "#.###.#R#.#", "#.#...#...#", "#L#.###.###", "#.#.#.....#", "#.#.####..#", "#.#..S#...#", "###########"], "par": 10}, {"id": 10, "name": "Caminho do Guardião", "biome": 2, "grid": ["#####E#####", "#C..#D..#.#", "#.#C#.#...#", "#.#...#...#", "#.#######.#", "#.....#...#", "#####.#.###", "#....C#.#.#", "#.#####.#.#", "#.#.#...#.#", "#.#.#.###.#", "#K#.......#", "#.####.##.#", "#.M.....#.#", "#.##RR#L#.#", "#.^.#S..#.#", "###########"], "par": 12}, {"id": 11, "name": "Santuário Oculto", "biome": 2, "grid": ["#####E#####", "#.....#...#", "#.#.#R#.R.#", "#....CF.#.#", "#.#.#####.#", "#FC..C#...#", "###.###...#", "#.#.#...#.#", "#.#.#..####", "#...#.....#", "#.#######L#", "#.#.#.....#", "#.#.#.###.#", "#.#.#.#...#", "#.#...#H###", "#...#S#...#", "###########"], "par": 15}, {"id": 12, "name": "Trono das Runas", "biome": 2, "grid": ["#####E#####", "#...#D....#", "#.#F#.#.#.#", "#.#L^.#...#", "#.#####.###", "#.#.......#", "#.#.#R#####", "#.#.#.....#", "#.#.#.#.#.#", "#..KC...#.#", "#.R####.#.#", "#.....C.#.#", "#M#######.#", "#.#.#.C.#.#", "#.#.#.#.#.#", "#....S#...#", "###########"], "par": 13}, {"id": 13, "name": "Muralha Carmesim", "biome": 3, "grid": ["#####E#####", "#.......#.#", "#.##..#.#.#", "#.#...#...#", "##R.#####.#", "#.C.#.#...#", "#.###.#.###", "#...#...#.#", "#.#M#.###^#", "#..CR.....#", "#L#^#####.#", "#.#.....C.#", "#.#.#...###", "#...#.#...#", "###.#.###.#", "#....S#...#", "###########"], "par": 9}, {"id": 14, "name": "Masmorra de Ferro", "biome": 3, "grid": ["#####E#####", "#.#..D....#", "#.#.#.###.#", "#.#.RL.C#.#", "#.#.###.#.#", "#...#..C#.#", "#.###M###.#", "#.#.K.#.#.#", "#.#.###.#.#", "#.#...#...#", "#####.#.#.#", "#.....#...#", "#^##.####.#", "#.C....H#.#", "#.####R.#.#", "#...#S..#.#", "###########"], "par": 14}, {"id": 15, "name": "Torre do Eclipse", "biome": 3, "grid": ["#####E#####", "#.....#.L.#", "#.###.###.#", "#.#.......#", "#.#####.###", "#F#...M.^.#", "#.#.R####.#", "#.......#C#", "#.###.###.#", "#...#.#...#", "#.#.#.#^###", "#.....#C..#", "#.#.#####.#", "#.....#..C#", "###.##R.#.#", "#...#S..#.#", "###########"], "par": 14}, {"id": 16, "name": "Cidadela Abissal", "biome": 3, "grid": ["#####E#####", "#...#D.C..#", "#.#C#####.#", "#...#.....#", "#.#.#.##R.#", "#K#.#.#...#", "#.#.#.###M#", "#.#.#...#.#", "#.#.#...#.#", "#.#H#.#.#.#", "#.#.###.###", "#.....#...#", "#.###.###.#", "#.#...L...#", "#.###R#.#C#", "#^...S..F.#", "###########"], "par": 13}, {"id": 17, "name": "Circuito Neon", "biome": 4, "grid": ["#####E#####", "#.#.......#", "#.#.#.#####", "#...#.....#", "##.#####R.#", "#........L#", "#.#######.#", "#.........#", "#######.###", "#....M#...#", "#.###.###.#", "#.#....C..#", "#.#.##.##.#", "#..FL..C#.#", "#.#.#R#C..#", "#....S..#.#", "###########"], "par": 12}, {"id": 18, "name": "Núcleo Cibernético", "biome": 4, "grid": ["#####E#####", "#....D#.H.#", "#.###.#...#", "#.........#", "#.####R##.#", "#C..#...#.#", "#M#.###.#.#", "#.#...#...#", "###.#K..###", "#CL...#.#.#", "#.#####.R.#", "#.#.......#", "#.#######.#", "#.#...#..F#", "#.#.#.#.###", "#C..#S#.^.#", "###########"], "par": 13}, {"id": 19, "name": "Grade Quântica", "biome": 4, "grid": ["#####E#####", "#.....#...#", "#^###H#.#.#", "#.F.#.#.#.#", "#...#...###", "#.#.#M#...#", "#.#L#.##..#", "#.#.#.#...#", "#.#.#C#...#", "#.#.#...R.#", "###.#####.#", "#...#.....#", "#.#####...#", "#.R...#...#", "#.#.#.###.#", "#M..#S#.CC#", "###########"], "par": 11}, {"id": 20, "name": "Abismo de Mazora", "biome": 4, "grid": ["#####E#####", "#M..#D.CH.#", "#...#.#.R##", "#.#.#.....#", "#.#.#.#.#F#", "#.#.#...#.#", "#...###.#.#", "#.#...#.#.#", "#.###.RC#.#", "#.#.L.#.#^#", "#.#..####.#", "#.#K......#", "#.#########", "#..C......#", "#L.#####..#", "#...#S....#", "###########"], "par": 14}];
+
+  const BIOMES = [
+    { name: 'Ruínas Antigas',        bg: '#0c081a', wall: '#2c1e4a', wallHi: '#4a3378', floor: '#130d26', accent: '#00f0ff', freq: 220 },
+    { name: 'Cavernas de Cristais',  bg: '#080e1f', wall: '#1a2f59', wallHi: '#2f5496', floor: '#0e1730', accent: '#9d4edd', freq: 246.94 },
+    { name: 'Templo Esquecido',      bg: '#160e08', wall: '#4a2f1a', wallHi: '#784c28', floor: '#21150c', accent: '#ffd43b', freq: 261.63 },
+    { name: 'Fortaleza Sombria',     bg: '#17070d', wall: '#4d1629', wallHi: '#802444', floor: '#220b13', accent: '#ff2a85', freq: 196.00 },
+    { name: 'Labirinto Tecnológico', bg: '#051218', wall: '#0f3847', wallHi: '#1c637d', floor: '#091d26', accent: '#00ffaa', freq: 293.66 }
+  ];
+
+  const SKINS = [
+    { id: 'classic',  name: 'Mazora Clássica',  costCoins: 0,   costCrystals: 0,  hair: '#14111a', streak: '#e62246', cloak: '#481c59', scarf: '#ff2a55' },
+    { id: 'neon',     name: 'Máscara Neon',     costCoins: 60,  costCrystals: 3,  hair: '#0c1826', streak: '#00f0ff', cloak: '#14294a', scarf: '#00ffaa' },
+    { id: 'amethyst', name: 'Guardiã Ametista', costCoins: 120, costCrystals: 6,  hair: '#1e1033', streak: '#d070ff', cloak: '#3a1a66', scarf: '#ff66cc' },
+    { id: 'crimson',  name: 'Sombra Carmesim',  costCoins: 200, costCrystals: 12, hair: '#12080c', streak: '#ff3344', cloak: '#5e0f24', scarf: '#ffd43b' },
+    { id: 'gold',     name: 'Núcleo Dourado',   costCoins: 320, costCrystals: 20, hair: '#21190c', streak: '#ffd43b', cloak: '#5c4110', scarf: '#00f0ff' }
+  ];
+
+  // Safe localStorage wrapper (prevents crashes in private browsing / quota errors)
+  const Storage = (() => {
+    const KEY = 'mazora_run_save_v3';
+    const def = {
+      unlocked: 1, coins: 0, crystals: 0, stars: {}, bestMoves: {},
+      ownedSkins: ['classic'], skin: 'classic',
+      settings: { music: true, sfx: true, dpad: false, vib: true }
+    };
+    let mem = JSON.parse(JSON.stringify(def));
+    return {
+      load() {
+        try {
+          const raw = localStorage.getItem(KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            mem = { ...def, ...parsed, settings: { ...def.settings, ...(parsed.settings || {}) } };
+          }
+        } catch (e) {}
+        return mem;
+      },
+      save(data) {
+        mem = data;
+        try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+      },
+      reset() {
+        mem = JSON.parse(JSON.stringify(def));
+        try { localStorage.removeItem(KEY); } catch (e) {}
+        return mem;
+      }
+    };
+  })();
+
+  let saveData = Storage.load();
+
+  // Web Audio Synthesizer with safe auto-resume
+  const AudioEngine = (() => {
+    let ctx = null;
+    let musicTimer = null;
+    let noteIdx = 0;
+    const scale = [1, 1.125, 1.25, 1.5, 1.667, 2];
+
+    function ensure() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) ctx = new AC();
+      }
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      return ctx;
+    }
+
+    function tone(freq, dur, type = 'square', vol = 0.06, slideTo = null) {
+      if (!saveData.settings.sfx) return;
+      const c = ensure();
+      if (!c) return;
+      try {
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, c.currentTime);
+        if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, c.currentTime + dur);
+        gain.gain.setValueAtTime(vol, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+        osc.connect(gain); gain.connect(c.destination);
+        osc.start(); osc.stop(c.currentTime + dur);
+      } catch (e) {}
+    }
+
+    function startMusic(biomeIdx) {
+      stopMusic();
+      if (!saveData.settings.music) return;
+      const base = (BIOMES[biomeIdx] || BIOMES[0]).freq;
+      const pattern = [0, 2, 3, 2, 4, 3, 1, 2];
+      musicTimer = setInterval(() => {
+        if (!saveData.settings.music || document.hidden) return;
+        const c = ensure();
+        if (!c || c.state !== 'running') return;
+        try {
+          const osc = c.createOscillator();
+          const gain = c.createGain();
+          osc.type = 'triangle';
+          const f = base * scale[pattern[noteIdx++ % pattern.length]] * 0.5;
+          osc.frequency.setValueAtTime(f, c.currentTime);
+          gain.gain.setValueAtTime(0.028, c.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.22);
+          osc.connect(gain); gain.connect(c.destination);
+          osc.start(); osc.stop(c.currentTime + 0.24);
+        } catch (e) {}
+      }, 280);
+    }
+
+    function stopMusic() {
+      if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+    }
+
+    return {
+      unlock: ensure,
+      startMusic, stopMusic,
+      slide: () => tone(240, 0.06, 'triangle', 0.05, 420),
+      hitWall: () => tone(110, 0.06, 'square', 0.05, 65),
+      coin: (combo = 0) => tone(520 * Math.pow(1.06, Math.min(combo, 10)), 0.07, 'sine', 0.055),
+      crystal: () => { tone(660, 0.12, 'triangle', 0.07, 990); setTimeout(() => tone(990, 0.14, 'sine', 0.06, 1320), 60); },
+      key: () => { tone(587, 0.1, 'square', 0.06); setTimeout(() => tone(880, 0.16, 'square', 0.06), 80); },
+      win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.15, 'triangle', 0.07), i * 85)),
+      lose: () => tone(220, 0.28, 'sawtooth', 0.07, 70)
+    };
+  })();
+
+  // Real Sliding BFS Auditor
+  const MazeAuditorBFS = (() => {
+    const DIRS = [
+      { dx: 0, dy: -1, k: 'U', sym: '↑' },
+      { dx: 0, dy:  1, k: 'D', sym: '↓' },
+      { dx: -1, dy: 0, k: 'L', sym: '←' },
+      { dx:  1, dy: 0, k: 'R', sym: '→' }
+    ];
+    function solve(grid) {
+      const H = grid.length, W = grid[0].length;
+      let sx = -1, sy = -1, ex = -1, ey = -1;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          if (grid[y][x] === 'S') { sx = x; sy = y; }
+          if (grid[y][x] === 'E') { ex = x; ey = y; }
+        }
+      }
+      if (sx < 0 || ex < 0) return { ok: false, path: [], nodes: [] };
+      const q = [{ x: sx, y: sy, k: false, path: [], nodes: [{ x: sx, y: sy }] }];
+      const vis = new Set([`${sx},${sy},0`]);
+      while (q.length) {
+        const cur = q.shift();
+        for (const d of DIRS) {
+          let nx = cur.x, ny = cur.y, nk = cur.k, hitExit = false;
+          while (true) {
+            const tx = nx + d.dx, ty = ny + d.dy;
+            if (tx < 0 || ty < 0 || tx >= W || ty >= H) break;
+            const ch = grid[ty][tx];
+            if (ch === '#' || ch === 'R' || (ch === 'D' && !nk)) break;
+            nx = tx; ny = ty;
+            if (ch === 'K') nk = true;
+            if (nx === ex && ny === ey) { hitExit = true; break; }
+          }
+          if (hitExit) {
+            return { ok: true, path: [...cur.path, d.k], syms: [...cur.path, d.k].map(c => DIRS.find(z => z.k === c).sym).join(''), nodes: [...cur.nodes, { x: nx, y: ny }] };
+          }
+          if (nx !== cur.x || ny !== cur.y || nk !== cur.k) {
+            const key = `${nx},${ny},${nk ? 1 : 0}`;
+            if (!vis.has(key)) {
+              vis.add(key);
+              q.push({ x: nx, y: ny, k: nk, path: [...cur.path, d.k], nodes: [...cur.nodes, { x: nx, y: ny }] });
+            }
+          }
+        }
+      }
+      return { ok: false, path: [], nodes: [] };
+    }
+    return { solve };
+  })();
+
+  const AUDIT_CACHE = LEVELS.map(l => ({ level: l, res: MazeAuditorBFS.solve(l.grid) }));
+
+  // Canvas & Game State
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('stage-wrap');
+  const COLS = 11, ROWS = 17;
+  let tileSize = 32;
+
+  const state = {
+    mode: 'menu', // menu, play, pause, win, lose
+    levelIdx: 0,
+    grid: [],
+    biome: BIOMES[0],
+    px: 5, py: 15,
+    vx: 0, vy: 0,
+    moving: false,
+    facing: 'U',
+    bufferedDir: null,
+    bufferTimer: 0,
+    hasKey: false,
+    hasShield: false,
+    coins: 0,
+    crystals: 0,
+    moves: 0,
+    combo: 0,
+    comboTimer: 0,
+    time: 0,
+    graceTimer: 0.9,
+    shake: 0,
+    squashX: 1, squashY: 1,
+    showHint: false,
+    botActive: false,
+    botQueue: [],
+    botCooldown: 0,
+    particles: [],
+    trail: [],
+    crumbled: new Map(), // "x,y" -> timer
+    saws: [],
+    collected: new Set()
+  };
+
+  function resize() {
+    const rect = wrap.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    tileSize = Math.max(16, Math.floor(Math.min(rect.width / COLS, rect.height / ROWS)));
+    const cw = tileSize * COLS;
+    const ch = tileSize * ROWS;
+    canvas.style.width = cw + 'px';
+    canvas.style.height = ch + 'px';
+    canvas.width = Math.floor(cw * dpr);
+    canvas.height = Math.floor(ch * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+  }
+  window.addEventListener('resize', resize);
+
+  function vib(ms) {
+    if (saveData.settings.vib && navigator.vibrate) {
+      try { navigator.vibrate(ms); } catch (e) {}
+    }
+  }
+
+  function spawnParticles(x, y, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 1.5 + Math.random() * 3.5;
+      state.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.35 + Math.random() * 0.25, color });
+    }
+  }
+
+  function loadLevel(idx, autoBot = false) {
+    state.levelIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+    const lvl = LEVELS[state.levelIdx];
+    state.grid = lvl.grid.map(r => r.split(''));
+    state.biome = BIOMES[lvl.biome] || BIOMES[0];
+    state.px = 5; state.py = 15;
+    state.vx = 0; state.vy = 0;
+    state.moving = false;
+    state.facing = 'U';
+    state.bufferedDir = null;
+    state.bufferTimer = 0;
+    state.hasKey = false;
+    state.hasShield = false;
+    state.coins = 0;
+    state.crystals = 0;
+    state.moves = 0;
+    state.combo = 0;
+    state.comboTimer = 0;
+    state.graceTimer = 0.9;
+    state.shake = 0;
+    state.squashX = 1; state.squashY = 1;
+    state.particles = [];
+    state.trail = [];
+    state.crumbled.clear();
+    state.collected.clear();
+    state.saws = [];
+
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if (state.grid[y][x] === 'S') { state.px = x; state.py = y; }
+        if (state.grid[y][x] === 'M') {
+          state.saws.push({ x, y, phase: (x + y) * 0.7 });
+        }
+      }
+    }
+
+    state.botActive = autoBot;
+    state.botQueue = autoBot ? [...AUDIT_CACHE[state.levelIdx].res.path] : [];
+    state.botCooldown = 0.2;
+    state.mode = 'play';
+    hideAllOverlays();
+    updateHUD();
+    AudioEngine.startMusic(lvl.biome);
+  }
+
+  function isSolid(x, y) {
+    if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
+    const ch = state.grid[y][x];
+    if (ch === '#' || ch === 'R') return true;
+    if (ch === 'D' && !state.hasKey) return true;
+    return false;
+  }
+
+  function requestDir(dir, fromBot = false) {
+    AudioEngine.unlock();
+    if (state.mode !== 'play') return;
+    if (!fromBot && state.botActive) {
+      state.botActive = false;
+      document.getElementById('btn-bot').classList.remove('active');
+    }
+    if (state.moving) {
+      state.bufferedDir = dir;
+      state.bufferTimer = 0.28;
+      return;
+    }
+    const map = { U: [0,-1], D: [0,1], L: [-1,0], R: [1,0] };
+    const [dx, dy] = map[dir] || [0,0];
+    const gx = Math.round(state.px), gy = Math.round(state.py);
+    if (!isSolid(gx + dx, gy + dy)) {
+      state.px = gx; state.py = gy;
+      state.vx = dx; state.vy = dy;
+      state.facing = dir;
+      state.moving = true;
+      state.moves++;
+      AudioEngine.slide();
+    } else {
+      state.shake = 0.08;
+    }
+  }
+
+  function triggerDeath(reason) {
+    if (state.hasShield) {
+      state.hasShield = false;
+      state.graceTimer = 0.7;
+      state.shake = 0.15;
+      spawnParticles(state.px + 0.5, state.py + 0.5, '#4dff91', 14);
+      updateHUD();
+      return;
+    }
+    state.mode = 'lose';
+    state.moving = false;
+    state.botActive = false;
+    AudioEngine.lose();
+    vib(60);
+    spawnParticles(state.px + 0.5, state.py + 0.5, '#ff2a85', 18);
+    document.getElementById('lose-reason').textContent = reason;
+    showOverlay('screen-lose');
+  }
+
+  function triggerWin() {
+    state.mode = 'win';
+    state.moving = false;
+    state.botActive = false;
+    AudioEngine.win();
+    vib([30, 40, 50]);
+    const lvl = LEVELS[state.levelIdx];
+    const stars = state.crystals >= 3 ? 3 : (state.crystals >= 1 ? 2 : 1);
+    saveData.coins += state.coins;
+    saveData.crystals += state.crystals;
+    saveData.stars[lvl.id] = Math.max(saveData.stars[lvl.id] || 0, stars);
+    if (!saveData.bestMoves[lvl.id] || state.moves < saveData.bestMoves[lvl.id]) {
+      saveData.bestMoves[lvl.id] = state.moves;
+    }
+    if (lvl.id >= saveData.unlocked && lvl.id < LEVELS.length) {
+      saveData.unlocked = lvl.id + 1;
+    }
+    Storage.save(saveData);
+    document.getElementById('win-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
+    document.getElementById('win-stats').textContent = `Fase ${lvl.id} • ${state.moves} movs • +${state.coins}🪙 +${state.crystals}💎`;
+    document.getElementById('w-next').style.display = state.levelIdx < LEVELS.length - 1 ? 'block' : 'none';
+    showOverlay('screen-win');
+  }
+
+  function checkTile(gx, gy) {
+    const ch = state.grid[gy][gx];
+    const key = `${gx},${gy}`;
+
+    if (ch === 'E') { triggerWin(); return; }
+
+    if (ch === '.' && !state.collected.has(key)) {
+      state.collected.add(key);
+      state.coins++;
+      state.combo++;
+      state.comboTimer = 0.8;
+      AudioEngine.coin(state.combo);
+      spawnParticles(gx + 0.5, gy + 0.5, '#ffd43b', 4);
+      updateHUD();
+    } else if (ch === 'C' && !state.collected.has(key)) {
+      state.collected.add(key);
+      state.crystals++;
+      AudioEngine.crystal();
+      spawnParticles(gx + 0.5, gy + 0.5, '#d070ff', 10);
+      updateHUD();
+    } else if (ch === 'K' && !state.hasKey) {
+      state.hasKey = true;
+      AudioEngine.key();
+      spawnParticles(gx + 0.5, gy + 0.5, '#00f0ff', 12);
+      updateHUD();
+    } else if (ch === 'H' && !state.collected.has(key)) {
+      state.collected.add(key);
+      state.hasShield = true;
+      AudioEngine.crystal();
+      spawnParticles(gx + 0.5, gy + 0.5, '#4dff91', 10);
+      updateHUD();
+    } else if (ch === 'F') {
+      if (!state.crumbled.has(key)) {
+        state.crumbled.set(key, 0.55); // collapses shortly after stepping
+      }
+    }
+
+    if (state.graceTimer <= 0) {
+      if (ch === '^' && Math.sin(state.time * 3.2) > 0.35) {
+        triggerDeath('Espinhos ativados!');
+      } else if (ch === 'L' && Math.sin(state.time * 2.6 + gx) > 0.45) {
+        triggerDeath('Laser de segurança!');
+      } else if (ch === 'M' && Math.sin(state.time * 4.0 + gx + gy) > 0.55) {
+        triggerDeath('Serra móvel!');
+      }
+    }
+  }
+
+  function update(dt) {
+    state.time += dt;
+    if (state.graceTimer > 0) state.graceTimer -= dt;
+    if (state.shake > 0) state.shake = Math.max(0, state.shake - dt);
+    if (state.comboTimer > 0) { state.comboTimer -= dt; if (state.comboTimer <= 0) state.combo = 0; }
+    state.squashX += (1 - state.squashX) * Math.min(1, dt * 16);
+    state.squashY += (1 - state.squashY) * Math.min(1, dt * 16);
+
+    // Update crumbling tiles (regenerate after 2.4s)
+    for (const [k, t] of state.crumbled.entries()) {
+      const nt = t - dt;
+      if (nt <= -2.4) state.crumbled.delete(k);
+      else state.crumbled.set(k, nt);
+    }
+
+    // Update particles
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const p = state.particles[i];
+      p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+      if (p.life <= 0) state.particles.splice(i, 1);
+    }
+
+    if (state.mode !== 'play') return;
+
+    // Bot auto-play
+    if (state.botActive && !state.moving) {
+      state.botCooldown -= dt;
+      if (state.botCooldown <= 0 && state.botQueue.length > 0) {
+        requestDir(state.botQueue.shift(), true);
+        state.botCooldown = 0.12;
+      }
+    }
+
+    if (state.bufferTimer > 0) {
+      state.bufferTimer -= dt;
+      if (state.bufferTimer <= 0) state.bufferedDir = null;
+    }
+
+    if (state.moving) {
+      const SPEED = 26; // tiles/sec
+      let step = SPEED * dt;
+      while (step > 0 && state.moving) {
+        const sub = Math.min(step, 0.25);
+        step -= sub;
+        const nx = state.px + state.vx * sub;
+        const ny = state.py + state.vy * sub;
+        const nextCellX = state.vx > 0 ? Math.floor(nx + 0.999) : (state.vx < 0 ? Math.floor(nx) : Math.round(nx));
+        const nextCellY = state.vy > 0 ? Math.floor(ny + 0.999) : (state.vy < 0 ? Math.floor(ny) : Math.round(ny));
+
+        if (isSolid(nextCellX, nextCellY)) {
+          state.px = Math.round(state.px);
+          state.py = Math.round(state.py);
+          state.moving = false;
+          state.vx = 0; state.vy = 0;
+          state.squashX = 1.24; state.squashY = 0.78;
+          state.shake = 0.06;
+          AudioEngine.hitWall();
+          vib(10);
+          spawnParticles(state.px + 0.5, state.py + 0.5, state.biome.accent, 5);
+          checkTile(state.px, state.py);
+          if (state.bufferedDir && state.mode === 'play') {
+            const d = state.bufferedDir;
+            state.bufferedDir = null;
+            requestDir(d);
+          }
+          break;
+        } else {
+          state.px = nx; state.py = ny;
+          state.trail.push({ x: state.px, y: state.py, life: 0.14 });
+          if (state.trail.length > 14) state.trail.shift();
+          checkTile(Math.round(state.px), Math.round(state.py));
+          if (state.mode !== 'play') break;
+        }
+      }
+    } else {
+      // Standing on collapsed floor or active trap
+      const gx = Math.round(state.px), gy = Math.round(state.py);
+      const ck = `${gx},${gy}`;
+      if (state.crumbled.has(ck) && state.crumbled.get(ck) <= 0 && state.graceTimer <= 0) {
+        triggerDeath('Piso desmoronou!');
+      } else {
+        checkTile(gx, gy);
+      }
+    }
+
+    for (let i = state.trail.length - 1; i >= 0; i--) {
+      state.trail[i].life -= dt;
+      if (state.trail[i].life <= 0) state.trail.splice(i, 1);
+    }
+  }
+
+  function drawMazora(x, y, ts) {
+    const skin = SKINS.find(s => s.id === saveData.skin) || SKINS[0];
+    ctx.save();
+    ctx.translate((x + 0.5) * ts, (y + 0.5) * ts);
+    ctx.scale(state.squashX, state.squashY);
+    const p = ts / 16;
+
+    // Cloak
+    ctx.fillStyle = skin.cloak;
+    ctx.fillRect(-5 * p, -1 * p, 10 * p, 7 * p);
+    // Scarf
+    ctx.fillStyle = skin.scarf;
+    ctx.fillRect(-5 * p, -1 * p, 10 * p, 2 * p);
+    // Face
+    ctx.fillStyle = '#ffe0cc';
+    ctx.fillRect(-4 * p, -5 * p, 8 * p, 4 * p);
+    // Eyes
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-2.5 * p, -3.8 * p, 1.4 * p, 1.8 * p);
+    ctx.fillRect(1.1 * p, -3.8 * p, 1.4 * p, 1.8 * p);
+    // Hair
+    ctx.fillStyle = skin.hair;
+    ctx.fillRect(-5 * p, -7 * p, 10 * p, 3 * p);
+    ctx.fillRect(-5 * p, -5 * p, 1.5 * p, 4 * p);
+    ctx.fillRect(3.5 * p, -5 * p, 1.5 * p, 4 * p);
+    // Red streak & bow
+    ctx.fillStyle = skin.streak;
+    ctx.fillRect(-2 * p, -7 * p, 2 * p, 3 * p);
+    ctx.fillRect(-3 * p, -8.5 * p, 2.5 * p, 1.8 * p);
+    ctx.fillRect(0.5 * p, -8.5 * p, 2.5 * p, 1.8 * p);
+
+    if (state.hasShield) {
+      ctx.strokeStyle = '#4dff91';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, ts * 0.48, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function render() {
+    const ts = tileSize;
+    ctx.fillStyle = state.biome.bg;
+    ctx.fillRect(0, 0, COLS * ts, ROWS * ts);
+
+    ctx.save();
+    if (state.shake > 0) {
+      ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
+    }
+
+    // Draw grid
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const ch = state.grid[y][x];
+        const px = x * ts, py = y * ts;
+        const key = `${x},${y}`;
+
+        if (ch === '#' || ch === 'R') {
+          ctx.fillStyle = state.biome.wall;
+          ctx.fillRect(px, py, ts, ts);
+          ctx.fillStyle = state.biome.wallHi;
+          ctx.fillRect(px + 2, py + 2, ts - 4, 4);
+          if (ch === 'R') {
+            ctx.strokeStyle = state.biome.accent;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(px + 4, py + 4, ts - 8, ts - 8);
+          }
+        } else {
+          ctx.fillStyle = state.biome.floor;
+          ctx.fillRect(px, py, ts, ts);
+          ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+          ctx.strokeRect(px, py, ts, ts);
+
+          if (ch === 'S') {
+            ctx.fillStyle = 'rgba(0,240,255,0.18)';
+            ctx.fillRect(px + 2, py + 2, ts - 4, ts - 4);
+          } else if (ch === 'E') {
+            ctx.fillStyle = state.biome.accent;
+            ctx.beginPath();
+            ctx.arc(px + ts / 2, py + ts / 2, ts * 0.36 + Math.sin(state.time * 6) * 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(px + ts / 2, py + ts / 2, ts * 0.16, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (ch === 'D' && !state.hasKey) {
+            ctx.fillStyle = '#5a2d0c';
+            ctx.fillRect(px + 2, py + 2, ts - 4, ts - 4);
+            ctx.strokeStyle = '#ffd43b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(px + 4, py + 4, ts - 8, ts - 8);
+          } else if (ch === '.' && !state.collected.has(key)) {
+            ctx.fillStyle = '#ffd43b';
+            ctx.beginPath();
+            ctx.arc(px + ts / 2, py + ts / 2, ts * 0.14, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (ch === 'C' && !state.collected.has(key)) {
+            ctx.fillStyle = '#c77dff';
+            ctx.beginPath();
+            ctx.moveTo(px + ts / 2, py + ts * 0.18);
+            ctx.lineTo(px + ts * 0.78, py + ts / 2);
+            ctx.lineTo(px + ts / 2, py + ts * 0.82);
+            ctx.lineTo(px + ts * 0.22, py + ts / 2);
+            ctx.closePath();
+            ctx.fill();
+          } else if (ch === 'K' && !state.hasKey) {
+            ctx.fillStyle = '#00f0ff';
+            ctx.beginPath();
+            ctx.arc(px + ts * 0.42, py + ts * 0.45, ts * 0.18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(px + ts * 0.5, py + ts * 0.4, ts * 0.32, ts * 0.12);
+          } else if (ch === 'H' && !state.collected.has(key)) {
+            ctx.strokeStyle = '#4dff91';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(px + ts / 2, py + ts / 2, ts * 0.26, 0, Math.PI * 2);
+            ctx.stroke();
+          } else if (ch === '^') {
+            const on = Math.sin(state.time * 3.2) > 0.35;
+            ctx.fillStyle = on ? '#ff2a55' : '#4a2538';
+            ctx.beginPath();
+            ctx.moveTo(px + ts * 0.2, py + ts * 0.8);
+            ctx.lineTo(px + ts * 0.5, py + ts * (on ? 0.2 : 0.6));
+            ctx.lineTo(px + ts * 0.8, py + ts * 0.8);
+            ctx.closePath();
+            ctx.fill();
+          } else if (ch === 'L') {
+            const on = Math.sin(state.time * 2.6 + x) > 0.45;
+            ctx.fillStyle = on ? '#ff0055' : '#3d1528';
+            ctx.fillRect(px + 3, py + ts * 0.42, ts - 6, ts * 0.16);
+          } else if (ch === 'M') {
+            const on = Math.sin(state.time * 4.0 + x + y) > 0.55;
+            ctx.strokeStyle = on ? '#ff6b35' : '#5c3324';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(px + ts / 2, py + ts / 2, ts * 0.28, state.time * 6, state.time * 6 + Math.PI * 1.5);
+            ctx.stroke();
+          } else if (ch === 'F') {
+            const collapsed = state.crumbled.has(key) && state.crumbled.get(key) <= 0;
+            ctx.fillStyle = collapsed ? '#040208' : '#3a2b5c';
+            ctx.fillRect(px + 3, py + 3, ts - 6, ts - 6);
+          }
+        }
+      }
+    }
+
+    // BFS Route Hint
+    if (state.showHint) {
+      const nodes = AUDIT_CACHE[state.levelIdx].res.nodes;
+      if (nodes.length > 1) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0,240,255,0.65)';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        nodes.forEach((n, i) => {
+          const cx = (n.x + 0.5) * ts, cy = (n.y + 0.5) * ts;
+          if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+        });
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // Trail
+    state.trail.forEach(t => {
+      ctx.fillStyle = `rgba(0,240,255,${Math.max(0, t.life * 2.5)})`;
+      ctx.fillRect((t.x + 0.28) * ts, (t.y + 0.28) * ts, ts * 0.44, ts * 0.44);
+    });
+
+    // Player
+    drawMazora(state.px, state.py, ts);
+
+    // Particles
+    state.particles.forEach(p => {
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, p.life * 2);
+      ctx.fillRect(p.x * ts - 2, p.y * ts - 2, 4, 4);
+      ctx.globalAlpha = 1;
+    });
+
+    ctx.restore();
+  }
+
+  // Main Loop with dt clamp & tab visibility auto-pause
+  let lastTs = performance.now();
+  function loop(now) {
+    const dt = Math.min((now - lastTs) / 1000, 0.05);
+    lastTs = now;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && state.mode === 'play') {
+      state.mode = 'pause';
+      showOverlay('screen-pause');
+    }
+  });
+
+  // Input: Keyboard + Continuous Anchor Swipe
+  window.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if (k === 'arrowup' || k === 'w') { e.preventDefault(); requestDir('U'); }
+    else if (k === 'arrowdown' || k === 's') { e.preventDefault(); requestDir('D'); }
+    else if (k === 'arrowleft' || k === 'a') { e.preventDefault(); requestDir('L'); }
+    else if (k === 'arrowright' || k === 'd') { e.preventDefault(); requestDir('R'); }
+    else if (k === 'r' && state.mode === 'play') loadLevel(state.levelIdx);
+    else if (k === 'h' && state.mode === 'play') toggleHint();
+    else if (k === 'b' && state.mode === 'play') toggleBot();
+    else if (k === 'escape') {
+      if (state.mode === 'play') { state.mode = 'pause'; showOverlay('screen-pause'); }
+      else if (state.mode === 'pause') { state.mode = 'play'; hideAllOverlays(); }
+    }
+  });
+
+  let touchStart = null;
+  wrap.addEventListener('pointerdown', e => {
+    AudioEngine.unlock();
+    touchStart = { x: e.clientX, y: e.clientY };
+  });
+  wrap.addEventListener('pointermove', e => {
+    if (!touchStart || state.mode !== 'play') return;
+    const dx = e.clientX - touchStart.x;
+    const dy = e.clientY - touchStart.y;
+    if (Math.hypot(dx, dy) >= 20) {
+      if (Math.abs(dx) > Math.abs(dy)) requestDir(dx > 0 ? 'R' : 'L');
+      else requestDir(dy > 0 ? 'D' : 'U');
+      touchStart = { x: e.clientX, y: e.clientY }; // continuous anchor
+    }
+  });
+  window.addEventListener('pointerup', () => { touchStart = null; });
+
+  // UI Helpers
+  function hideAllOverlays() {
+    document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
+  }
+  function showOverlay(id) {
+    hideAllOverlays();
+    document.getElementById(id).classList.remove('hidden');
+  }
+  function updateHUD() {
+    const lvl = LEVELS[state.levelIdx];
+    document.getElementById('hud-lvl').textContent = `F${lvl.id}`;
+    document.getElementById('hud-coins').textContent = state.coins;
+    document.getElementById('hud-crystals').textContent = `${state.crystals}/3`;
+    document.getElementById('hud-key').style.display = state.hasKey ? 'flex' : 'none';
+    document.getElementById('hud-shield').style.display = state.hasShield ? 'flex' : 'none';
+    document.getElementById('btn-hint').classList.toggle('active', state.showHint);
+    document.getElementById('btn-bot').classList.toggle('active', state.botActive);
+  }
+  function toggleHint() { state.showHint = !state.showHint; updateHUD(); }
+  function toggleBot() {
+    if (state.mode !== 'play') return;
+    if (!state.botActive) loadLevel(state.levelIdx, true);
+    else { state.botActive = false; updateHUD(); }
+  }
+
+  function renderLevelsUI() {
+    const g = document.getElementById('levels-grid');
+    g.innerHTML = '';
+    LEVELS.forEach((l, i) => {
+      const unlocked = l.id <= saveData.unlocked;
+      const st = saveData.stars[l.id] || 0;
+      const card = document.createElement('div');
+      card.className = `lvl-card ${unlocked ? '' : 'locked'} ${st > 0 ? 'done' : ''}`;
+      card.innerHTML = `<div style="font-weight:800;font-size:15px">${unlocked ? l.id : '🔒'}</div><div style="font-size:10px;color:var(--gold)">${'⭐'.repeat(st)}</div>`;
+      if (unlocked) card.onclick = () => loadLevel(i);
+      g.appendChild(card);
+    });
+  }
+
+  function renderShopUI() {
+    document.getElementById('shop-wallet').textContent = `Carteira: 🪙 ${saveData.coins}  •  💎 ${saveData.crystals}`;
+    const list = document.getElementById('shop-list');
+    list.innerHTML = '';
+    SKINS.forEach(s => {
+      const owned = saveData.ownedSkins.includes(s.id);
+      const equipped = saveData.skin === s.id;
+      const row = document.createElement('div');
+      row.className = 'row-card';
+      row.innerHTML = `<div><strong style="color:${s.scarf}">${s.name}</strong><div style="color:var(--muted)">${owned ? 'Desbloqueado' : `🪙 ${s.costCoins} • 💎 ${s.costCrystals}`}</div></div>`;
+      const btn = document.createElement('button');
+      btn.className = 'btn-icon' + (equipped ? ' active' : '');
+      btn.textContent = equipped ? 'EQUIPADO' : (owned ? 'USAR' : 'COMPRAR');
+      btn.onclick = () => {
+        if (owned) { saveData.skin = s.id; Storage.save(saveData); renderShopUI(); }
+        else if (saveData.coins >= s.costCoins && saveData.crystals >= s.costCrystals) {
+          saveData.coins -= s.costCoins; saveData.crystals -= s.costCrystals;
+          saveData.ownedSkins.push(s.id); saveData.skin = s.id;
+          Storage.save(saveData); renderShopUI();
+        }
+      };
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+
+  function renderAuditUI() {
+    const okCount = AUDIT_CACHE.filter(a => a.res.ok).length;
+    document.getElementById('audit-summary').textContent = `Status: ✅ ${okCount}/${LEVELS.length} Fases Solucionáveis via BFS Real`;
+    const list = document.getElementById('audit-list');
+    list.innerHTML = '';
+    AUDIT_CACHE.forEach((a, i) => {
+      const row = document.createElement('div');
+      row.className = 'row-card';
+      row.innerHTML = `<div><strong>F${a.level.id} ${a.level.name}</strong><div style="color:var(--cyan);font-size:11px">${a.res.ok ? `✅ ${a.res.path.length} movs: ${a.res.syms}` : '❌ ERRO'}</div></div>`;
+      const b = document.createElement('button');
+      b.className = 'btn-icon'; b.textContent = '🤖 BOT';
+      b.onclick = () => loadLevel(i, true);
+      row.appendChild(b);
+      list.appendChild(row);
+    });
+  }
+
+  function syncSettingsUI() {
+    document.getElementById('set-music').textContent = saveData.settings.music ? 'ON' : 'OFF';
+    document.getElementById('set-sfx').textContent = saveData.settings.sfx ? 'ON' : 'OFF';
+    document.getElementById('set-dpad').textContent = saveData.settings.dpad ? 'ON' : 'OFF';
+    document.getElementById('set-vib').textContent = saveData.settings.vib ? 'ON' : 'OFF';
+    document.getElementById('dpad').classList.toggle('show', saveData.settings.dpad);
+    resize();
+  }
+
+  // Bind Buttons
+  document.getElementById('m-play').onclick = () => loadLevel(Math.min(saveData.unlocked - 1, LEVELS.length - 1));
+  document.getElementById('m-levels').onclick = () => { renderLevelsUI(); showOverlay('screen-levels'); };
+  document.getElementById('m-shop').onclick = () => { renderShopUI(); showOverlay('screen-shop'); };
+  document.getElementById('m-audit').onclick = () => { renderAuditUI(); showOverlay('screen-audit'); };
+  document.getElementById('m-settings').onclick = () => { syncSettingsUI(); showOverlay('screen-settings'); };
+  document.querySelectorAll('[data-back="menu"]').forEach(b => b.onclick = () => { state.mode = 'menu'; AudioEngine.stopMusic(); showOverlay('screen-menu'); });
+
+  document.getElementById('btn-hint').onclick = toggleHint;
+  document.getElementById('btn-bot').onclick = toggleBot;
+  document.getElementById('btn-restart').onclick = () => { if (state.mode === 'play') loadLevel(state.levelIdx); };
+  document.getElementById('btn-pause').onclick = () => { if (state.mode === 'play') { state.mode = 'pause'; showOverlay('screen-pause'); } };
+
+  document.getElementById('p-resume').onclick = () => { state.mode = 'play'; hideAllOverlays(); };
+  document.getElementById('p-restart').onclick = () => loadLevel(state.levelIdx);
+  document.getElementById('p-menu').onclick = () => { state.mode = 'menu'; AudioEngine.stopMusic(); showOverlay('screen-menu'); };
+
+  document.getElementById('w-next').onclick = () => loadLevel(state.levelIdx + 1);
+  document.getElementById('w-replay').onclick = () => loadLevel(state.levelIdx);
+  document.getElementById('w-menu').onclick = () => { state.mode = 'menu'; AudioEngine.stopMusic(); showOverlay('screen-menu'); };
+
+  document.getElementById('l-retry').onclick = () => loadLevel(state.levelIdx);
+  document.getElementById('l-menu').onclick = () => { state.mode = 'menu'; AudioEngine.stopMusic(); showOverlay('screen-menu'); };
+
+  document.getElementById('set-music').onclick = () => { saveData.settings.music = !saveData.settings.music; Storage.save(saveData); syncSettingsUI(); if (!saveData.settings.music) AudioEngine.stopMusic(); };
+  document.getElementById('set-sfx').onclick = () => { saveData.settings.sfx = !saveData.settings.sfx; Storage.save(saveData); syncSettingsUI(); };
+  document.getElementById('set-dpad').onclick = () => { saveData.settings.dpad = !saveData.settings.dpad; Storage.save(saveData); syncSettingsUI(); };
+  document.getElementById('set-vib').onclick = () => { saveData.settings.vib = !saveData.settings.vib; Storage.save(saveData); syncSettingsUI(); };
+  document.getElementById('set-reset').onclick = () => { saveData = Storage.reset(); syncSettingsUI(); alert('Progresso resetado!'); };
+
+  document.querySelectorAll('#dpad button').forEach(b => b.onclick = () => requestDir(b.dataset.dir));
+
+  syncSettingsUI();
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
